@@ -81,7 +81,7 @@ async function calculateRanks() {
         if (user.votes === 0) {
             ranks[user.id] = 'F';
         } else if (user.isprotected) {
-            const currentRank = user.rank || 'C';
+            const currentRank = (user.rank === 'UNRANKED') ? 'C' : (user.rank || 'C');
             ranks[user.id] = (currentRank === 'F') ? 'D' : currentRank;
         } else {
             const tierIndex = Math.min(
@@ -220,7 +220,7 @@ app.get('/api/ranks', verifyToken, async (req, res) => {
 
     const userRanks = {};
     users.forEach(u => {
-        if (!u.iss_rank) userRanks[u.id] = rankData.ranks[u.id] || u.rank || 'D';
+        if (!u.iss_rank) userRanks[u.id] = rankData.ranks[u.id] || u.rank || 'UNRANKED';
     });
 
     res.json({ month, ranks: userRanks, fRank: rankData.frank });
@@ -232,12 +232,10 @@ app.post('/api/ranks/finalize', verifyToken, async (req, res) => {
     const { ranks, fRank } = await calculateRanks();
     const month = new Date().toISOString().slice(0, 7);
 
-    // Update users table with new ranks
     for (const [userId, rank] of Object.entries(ranks)) {
         await pool.query('UPDATE users SET rank = $1 WHERE id = $2', [rank, userId]);
     }
 
-    // Save ranks table
     const ranksRes = await pool.query('SELECT * FROM ranks WHERE month = $1', [month]);
     if (ranksRes.rows.length > 0) {
         await pool.query('UPDATE ranks SET ranks = $1, frank = $2 WHERE month = $3', [ranks, fRank, month]);
@@ -245,7 +243,6 @@ app.post('/api/ranks/finalize', verifyToken, async (req, res) => {
         await pool.query('INSERT INTO ranks (month, ranks, frank) VALUES ($1, $2, $3)', [month, ranks, fRank]);
     }
 
-    // Reset votes
     await pool.query('UPDATE votes SET ballots = $1 WHERE month = $2', [{}, month]);
 
     const usersRes = await pool.query('SELECT * FROM users');
@@ -310,6 +307,7 @@ app.post('/api/users/protect', verifyToken, async (req, res) => {
     res.json({ message: protect ? 'User protected' : 'Protection removed' });
 });
 
+// 🛠️ THIS IS THE ONLY PLACE WE CHANGED 'D' TO 'UNRANKED'
 app.post('/api/users/add', verifyToken, async (req, res) => {
     if (!req.isS_Rank) return res.status(403).json({ error: 'Only S-Rank' });
     const { username } = req.body;
@@ -321,12 +319,13 @@ app.post('/api/users/add', verifyToken, async (req, res) => {
     const newInvite = `PYRAMID_${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
     const hashedPassword = bcrypt.hashSync('rank', 10);
 
+    // Insert with 'UNRANKED' instead of 'D'
     await pool.query(
-        'INSERT INTO users (id, username, password, iss_rank, isprotected, rank, invitecode) VALUES ($1, $2, $3, false, false, \'D\', $4)',
-        [newId, username, hashedPassword, newInvite]
+        'INSERT INTO users (id, username, password, iss_rank, isprotected, rank, invitecode) VALUES ($1, $2, $3, false, false, $4, $5)',
+        [newId, username, hashedPassword, 'UNRANKED', newInvite]
     );
 
-    res.json({ message: 'User added', user: { username, rank: 'D', inviteCode: newInvite } });
+    res.json({ message: 'User added', user: { username, rank: 'UNRANKED', inviteCode: newInvite } });
 });
 
 app.post('/api/users/remove', verifyToken, async (req, res) => {
