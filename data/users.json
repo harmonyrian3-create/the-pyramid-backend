@@ -1,0 +1,12 @@
+[
+  {
+    "id": "s_rank_001",
+    "username": "S_Rank",
+    "password": "$2a$10$xuTK7XZW48/6m/ntuO7a9OBmr4kMivx3IGaYSKbsdqMN96irN.azy",
+    "isS_Rank": true,
+    "isProtected": false,
+    "rank": "S",
+    "createdAt": "2026-10-23T00:00:00.000Z",
+    "inviteCode": "PYRAMID_S_001"
+  }
+]
