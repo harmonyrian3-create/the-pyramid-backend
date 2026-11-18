@@ -307,7 +307,7 @@ app.post('/api/users/protect', verifyToken, async (req, res) => {
     res.json({ message: protect ? 'User protected' : 'Protection removed' });
 });
 
-// 🛠️ THIS IS THE ONLY PLACE WE CHANGED 'D' TO 'UNRANKED'
+// 🛠️ 4-DIGIT TOKEN GENERATOR
 app.post('/api/users/add', verifyToken, async (req, res) => {
     if (!req.isS_Rank) return res.status(403).json({ error: 'Only S-Rank' });
     const { username } = req.body;
@@ -316,10 +316,10 @@ app.post('/api/users/add', verifyToken, async (req, res) => {
     if (existing.rows.length > 0) return res.status(400).json({ error: 'Username exists' });
 
     const newId = crypto.randomUUID();
-    const newInvite = `PYRAMID_${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    // THIS IS THE 4-DIGIT TOKEN LOGIC
+    const newInvite = `PYRAMID_${Math.floor(1000 + Math.random() * 9000)}`;
     const hashedPassword = bcrypt.hashSync('rank', 10);
 
-    // Insert with 'UNRANKED' instead of 'D'
     await pool.query(
         'INSERT INTO users (id, username, password, iss_rank, isprotected, rank, invitecode) VALUES ($1, $2, $3, false, false, $4, $5)',
         [newId, username, hashedPassword, 'UNRANKED', newInvite]
